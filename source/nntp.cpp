@@ -1,22 +1,35 @@
+
+// basic c libs
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <string.h>
 
+// other c libs
 #include <unistd.h>
 #include <limits.h>
 #include <poll.h>
 #include <errno.h>
 
+// berkeley socket libs
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <fcntl.h>
 
+// c++ libs
+#include <iostream>
+#include <sstream>
+
+// 3ds specific libs
 #include <3ds.h>
 
+// local libs
 #include "nntp.hpp"
+
+using std::vector;
+using std::string;
 
 namespace NNTP {
     
@@ -79,8 +92,26 @@ nntpcon init(char *server, u16 port){
 
 nntpgroups get_groups(nntpcon con){
     nntpgroups out;
+    out.err = NNTPERR_UNKNOWN;
+
+	nntpgroups out;
 	out.err = NNTPERR_UNKNOWN;
-	out.groups = new std::vector<std::string>;
+	out.groups = new std::vector<std::string>
+	out.len = 0;
+	
+	char *working;
+	
+	u64 bufsize = 8192;
+	char *buf = malloc(bufsize);
+	u32 bufpos = 0;
+	char *last_buf;
+	
+	u64 backup_buf_size;
+	char *backup_buf;
+	
+	u32 groupsize = sizeof(char*) * 65534;
+	
+	int recv_res = 0;
 	
 	int pollres;
 	struct pollfd watchlist[1];
@@ -92,17 +123,15 @@ nntpgroups get_groups(nntpcon con){
 	send(con.socketfd, "LIST\r\n", strlen("LIST\r\n") + 1, 0);
 	
 	fcntl(con.socketfd, F_SETFL, fcntl(con.socketfd, F_GETFL, 0) | O_NONBLOCK);
-
+	
 	while ((pollres = poll(watchlist, 1, 5000)) != 0){
 		if (pollres == -1){
 			//printf("Poll error\n");
 			out.err = NNTPERR_POLL;
-            out.groups.clear();
-        	return out;
+			out.groups.clear();
+			return out;
 		}
-
-
-
+		last_buf = buf;
 		
 		if ((bufsize - bufpos) < 8192){
 			bufsize += 8192;
@@ -143,44 +172,22 @@ nntpgroups get_groups(nntpcon con){
 	
 	working = strtok(buf, "\n");
 	while (working != NULL){
-
-        
-
-
+		working[strlen(working)] = '\0';
 		last_buf = memcpy(out.groups[out.len], working, strlen(working) + 1);
 		if (last_buf == NULL){
 			out.err = NNTPERR_MEM;
 			return out;
 		}
-		
-		out.len++;
+		out.groups.push_back(std::string(working));
 		working = strtok(NULL, "\n");
 	}
-	
-	for (u32 i = 0; i < out.len; i++){
-		char *new;
-		new = strtok(out.groups[i], " ");
-		
-		if (new == NULL) {
-			printf("new == NULL\n");
-			printf("new = %s\n", out.groups[i]);
-			continue;
-		}
-		
-		//printf("new = %s\n", new);
-		
-		// printf("%d", strlen(new));
-		
-		//out.groups[i][strlen(new)] = '\0';
-		
-		//memset(out.groups[i], 0, strlen(out.groups[i]));
-		out.groups[i] = strcpy(out.groups[i], new);
-		//printf("%s\n", out.groups[i]);
-		// out.groups[i] = realloc(out.groups[i], strlen(new) + 1);
-		// if (o == NULL){
-			// out.err = NNTPERR_ALLOC;
-			// return out;
-		// }
+
+	for (u32 i = 0; i < out.groups.size; i++)){
+        std::istringstream f(out.groups.at(i));
+        std::string ns;
+
+        std::getline(f, ns, " ");
+        out.groups.at(i) = ns;
 	}
 
 	free(buf);
@@ -189,32 +196,18 @@ nntpgroups get_groups(nntpcon con){
 	return out;
 }
 
-nntpgroups find_groups(char *group, u16 level, nntpgroups groupslist){
+nntpgroups find_groups(std::string group, u16 level, nntpgroups groupslist){
 	nntpgroups out;
 	out.err = NNTPERR_UNKNOWN;
-	out.groups = malloc(sizeof(char*) * 32);
-	u8 left = 32;
+	out.groups = vector<string>(); 
 
-	for(u32 i = 0; i < groupslist.len; i++){
-		char **tempbuf = calloc(48, sizeof(char*));
-		if (left == 0){
-			out.groups = realloc(out.groups, sizeof(out.groups) + 32);
-			left += 32;
-		}
+	auto mgroups = vector<string>();
 
-		puts(groupslist.groups[i]);
+	for (auto group : groupslist.groups){
+		auto levels = vector<string>();
+		std::istringstream gstream = std::istringstream(group);
 
-		char *pch;
-		pch = strtok(groupslist.groups[i], ".");
-		while (pch != NULL){
-			puts("About to say something...");
-			printf("%s\n", pch);
-			sleep(5);
-			puts("Done!!!");
-		}
-
-		left--;
-	}	
+	}
 
 	return out;
 }
