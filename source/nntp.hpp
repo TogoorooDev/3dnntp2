@@ -5,7 +5,7 @@
 
 #include <3ds.h>
 
-
+// const int NNTPERR_OK = 0;
 
 #define NNTPERR_OK				0
 #define NNTPERR_CON_FAILURE 	1
@@ -21,6 +21,7 @@
 
 #define NNTPERR_UNKNOWN 		255
 
+namespace nntp {
 typedef struct {
 	char **strs;
 	u8 err;
@@ -47,6 +48,7 @@ typedef struct{
 typedef struct{
 	int socketfd;
 	u8 err;
+	u8 errno;
 	
 } nntpcon;
 
@@ -64,11 +66,13 @@ typedef struct {
 	
 } nntpgroups;
 
-nntpcon nntpinit(char*, u16);
-nntpres nntp_custom_command(char*, nntpcon);
-nntpgroups nntp_get_groups(nntpcon con);
-nntpgroups nntp_find_groups(char*, u16, nntpgroups);
+nntpcon init(const char*, u16);
+nntpres custom_command(char*, nntpcon);
+nntpgroups get_groups(nntpcon con);
+nntpgroups find_groups(std::string, u16, nntpgroups);
 
+
+}
 //#include "nntp.c"
 
 #endif
